@@ -10,6 +10,7 @@ import createSelectors from "@/utils/createSelectors";
 import { DEFAULT_SONG_SORT, type SongSortType } from "@/utils/songSort";
 import type { SortType } from "@/utils/sort";
 import type { OfflineTrackSortType, TrackSortType } from "@/utils/trackSort";
+import { isGaplessPlaybackEnabled, setGaplessPlayback } from "@/services/player";
 
 // Width (dp) at or above which the app switches to its "wide" layout: left
 // sidebar nav, docked player, two-column player, larger grids.
@@ -500,6 +501,11 @@ export const useAppBase = create<AppStore>()(
   },
   crossfadeDuration: 3000,
   setCrossfadeDuration: (crossfadeDuration: number) => {
+    const wasGapless = isGaplessPlaybackEnabled();
+    const nowGapless = crossfadeDuration === 0;
+    if (wasGapless !== nowGapless) {
+      setGaplessPlayback(nowGapless);
+    }
     set({ crossfadeDuration });
   },
   showPlayerAudioQuality: true,

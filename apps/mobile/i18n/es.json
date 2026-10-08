@@ -1600,6 +1600,8 @@
 					"endlessPlaybackDescription": "Cuando se acabe la lista de reproducción, añade automáticamente canciones similares para que la música siga sonando.",
 					"crossfadeLabel": "Crossfade",
 					"crossfadeDescription": "Desvanecimiento de la pista actual y aparición progresiva de la siguiente para una transición fluida.",
+					"gaplessLabel": "Reproducción sin interrupciones",
+					"gaplessDescription": "Reproduce las pistas sin silencio entre ellas. Se desactiva automáticamente cuando el crossfade está activado.",
 					"playerAudioQualityLabel": "Calidad de audio en el reproductor",
 					"playerAudioQualityDescription": "Mostrar el formato de origen, la velocidad de bits y la frecuencia de muestreo de la pista actual en la pantalla de reproducción, incluso cuando el servidor la esté transcodificando.",
 					"playerRatingLabel": "Valoración con estrellas en el reproductor",

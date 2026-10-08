@@ -1600,6 +1600,8 @@
 					"endlessPlaybackDescription": "When the queue ends, automatically add similar tracks to keep the music playing.",
 					"crossfadeLabel": "Crossfade",
 					"crossfadeDescription": "Fade out the current track and fade in the next one for a smooth transition.",
+					"gaplessLabel": "Gapless playback",
+					"gaplessDescription": "Play tracks seamlessly without silence between them. Automatically disabled when crossfade is enabled.",
 					"playerAudioQualityLabel": "Audio quality in player",
 					"playerAudioQualityDescription": "Show the source format, bitrate and sample rate of the current track on the now playing screen, including when the server is transcoding it.",
 					"playerRatingLabel": "Star rating in player",

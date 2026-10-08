@@ -106,7 +106,7 @@ import { registerLogoutHandler, useAuthBase } from "@/stores/auth";
 import useOffline from "@/stores/offline";
 import usePlaybackNotice from "@/stores/playbackNotice";
 import usePlayHistory from "@/stores/playHistory";
-import useQueue, { type QueueSource, type QueueTrack } from "@/stores/queue";
+import useQueue, { peekNextTrack, type QueueSource, type QueueTrack } from "@/stores/queue";
 import { resolveOfflineTrackArtwork } from "@/utils/artwork";
 import { computeReplayGainFactor } from "@/utils/replayGain";
 
@@ -128,6 +128,13 @@ let loadedTrackId: string | null = null;
 // Crossfade player — a second expo-audio instance used to play the next track
 // while the current one fades out. Swapped onto `player` when the fade completes.
 const crossfadePlayer = createAudioPlayer(null, { updateInterval: 250 });
+
+// Dedicated preload player for gapless transitions — loads and starts the next
+// track ahead of time so its buffers are warm. When the current track finishes,
+// the native player replaces its source instantly, producing a gapless handoff.
+const gaplessPreloadPlayer = createAudioPlayer(null, { updateInterval: 250 });
+let gaplessPreloadedId: string | null = null;
+
 let crossfadeVolume = 1.0;
 let crossfadeTimeout: NodeJS.Timeout | null = null;
 let crossfadeDuration = 3000; // ms — read from app store when > 0
@@ -947,27 +954,25 @@ export function pushLockScreenMetadata(track: QueueTrack | null) {
   applyLockScreen(player, track);
 }
 
-// Preload the next track in the queue for gapless playback
+// Preload the next track in the queue for gapless playback. Loads and starts
+// the next track on a dedicated player so its audio buffers are warm. When the
+// current track finishes, the native player replaces its source instantly,
+// producing a gapless handoff.
 function preloadNextTrack(currentTrack: QueueTrack) {
   try {
     const queue = useQueue.getState();
     if (queue.queue.length === 0 || queue.currentIndex == null) return;
-    
-    const nextIndex = queue.currentIndex + 1;
-    if (nextIndex < queue.queue.length) {
-      const nextTrack = queue.queue[nextIndex];
-      if (nextTrack && nextTrack.id !== currentTrack.id) {
-        // In a real implementation, we would:
-        // 1. Preload the next track's audio data into memory
-        // 2. Ensure audio buffers are ready for seamless playback
-        // 3. Handle the transition between tracks without gaps
-        
-        // For now, we're implementing the basic structure
-        // The actual gapless functionality would require deeper integration 
-        // with the audio engine and buffer management
-        return;
-      }
-    }
+
+    const nextTrack = peekNextTrack();
+    if (!nextTrack || nextTrack.id === currentTrack.id) return;
+    if (isPodcastTrack(nextTrack)) return;
+    if (gaplessPreloadedId === nextTrack.id) return;
+
+    const { url } = resolveTrackUrl(nextTrack);
+    gaplessPreloadPlayer.replace(audioSource(url));
+    gaplessPreloadPlayer.volume = 0;
+    gaplessPreloadPlayer.play().catch(() => {});
+    gaplessPreloadedId = nextTrack.id;
   } catch (error) {
     if (__DEV__) console.warn(`[player] preload next track error`, error);
   }
@@ -1983,29 +1988,6 @@ export function restoreServerQueue(
 // currentIndex, and the queue subscription reads that new current track as a
 // cue to play — so "Add to queue" would start playing, which is the Play
 // button's job and not what the label promises.
-// Preload a track for gapless playback
-function preloadTrackForGapless(track: QueueTrack) {
-  // This function will preload audio buffers to ensure seamless transitions
-  // Implementation details will be added to handle buffer pre-loading for gapless playback
-  try {
-    // For now we'll just ensure the track is cached
-    if (track.source === "podcast") {
-      // Podcasts handle their own buffering
-      return;
-    }
-    
-    // For regular tracks, we'll ensure they are pre-loaded by triggering a load
-    // This helps with gapless transitions by ensuring audio buffers are ready
-    const { url } = resolveTrackUrl(track);
-    // The actual buffering happens at the expo-audio level, but we ensure
-    // the track is ready for seamless playback by pre-loading it in the background
-    // This is a simplified approach - in a real implementation, we'd want to
-    // pre-fetch audio buffers to avoid gaps
-  } catch (error) {
-    // Log error but don't prevent playback
-    if (__DEV__) console.warn(`[player] preload error for track ${track.id}`, error);
-  }
-}
 
 // Returns how many tracks were added, so callers can report what happened.
 export function enqueueWithoutAutoplay(tracks: QueueTrack[]): number {

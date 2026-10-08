@@ -1600,6 +1600,8 @@
 					"endlessPlaybackDescription": "Wenn die Wiedergabeliste zu Ende ist, werden automatisch ähnliche Titel hinzugefügt, damit die Musik weiterläuft.",
 					"crossfadeLabel": "Crossfade",
 					"crossfadeDescription": "Blende den aktuellen Titel aus und den nächsten ein für einen fließenden Übergang.",
+					"gaplessLabel": "Lückenlose Wiedergabe",
+					"gaplessDescription": "Spiele Titel nahtlos ohne Stille zwischen ihnen ab. Wird automatisch deaktiviert, wenn Crossfade aktiviert ist.",
 					"playerAudioQualityLabel": "Audioqualität im Player",
 					"playerAudioQualityDescription": "Zeige das Quellformat, die Bitrate und die Abtastrate des aktuellen Titels auf dem Wiedergabebildschirm an, auch wenn der Server ihn gerade transkodiert.",
 					"playerRatingLabel": "Sternbewertung im Player",

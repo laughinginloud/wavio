@@ -1555,6 +1555,8 @@
 					"endlessPlaybackDescription": "队列播完后自动添加相似曲目，保持音乐持续播放。",
 					"crossfadeLabel": "交叉淡入淡出",
 					"crossfadeDescription": "淡出当前曲目并淡入下一首，实现平滑过渡。",
+					"gaplessLabel": "无缝播放",
+					"gaplessDescription": "曲目之间无静音地连续播放。当开启交叉淡入淡出时自动禁用。",
 					"playerAudioQualityLabel": "播放器中的音质",
 					"playerAudioQualityDescription": "在“正在播放”屏幕上显示当前曲目的源格式、比特率和采样率，包括服务器正在对其进行转码时的情况。",
 					"playerRatingLabel": "播放器中的星级评分",
