@@ -492,18 +492,22 @@ export const useAppBase = create<AppStore>()(
           podcastPlaybackRate: clampPodcastPlaybackRate(podcastPlaybackRate),
         });
       },
-      endlessPlaybackEnabled: false,
-      setEndlessPlaybackEnabled: (endlessPlaybackEnabled: boolean) => {
-        set({ endlessPlaybackEnabled });
-      },
-      showPlayerAudioQuality: true,
-      setShowPlayerAudioQuality: (showPlayerAudioQuality: boolean) => {
-        set({ showPlayerAudioQuality });
-      },
-      showPlayerRating: false,
-      setShowPlayerRating: (showPlayerRating: boolean) => {
-        set({ showPlayerRating });
-      },
+  endlessPlaybackEnabled: false,
+  setEndlessPlaybackEnabled: (endlessPlaybackEnabled: boolean) => {
+    set({ endlessPlaybackEnabled });
+  },
+  crossfadeEnabled: false,
+  setCrossfadeEnabled: (crossfadeEnabled: boolean) => {
+    set({ crossfadeEnabled });
+  },
+  showPlayerAudioQuality: true,
+  setShowPlayerAudioQuality: (showPlayerAudioQuality: boolean) => {
+    set({ showPlayerAudioQuality });
+  },
+  showPlayerRating: false,
+  setShowPlayerRating: (showPlayerRating: boolean) => {
+    set({ showPlayerRating });
+  },
       mediaControlsLayout: "seek",
       setMediaControlsLayout: (mediaControlsLayout: MediaControlsLayout) => {
         set({ mediaControlsLayout });

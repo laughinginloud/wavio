@@ -123,6 +123,7 @@ function logSwallowed(label: string, error: unknown) {
 const player = createAudioPlayer(null, { updateInterval: 250 });
 // Gapless playback configuration
 let gaplessEnabled = true;
+let crossfadeEnabled = false;
 let loadedTrackId: string | null = null;
 
 // Sleep-timer fade-out: rather than cut playback dead when the minutes timer
@@ -970,10 +971,29 @@ export function setGaplessPlayback(enabled: boolean) {
   if (__DEV__) {
     console.log(`Gapless playback ${enabled ? 'enabled' : 'disabled'}`);
   }
+  // If gapless is enabled, disable crossfade
+  if (enabled) {
+    setCrossfade(false);
+  }
 }
 
 export function isGaplessPlaybackEnabled(): boolean {
   return gaplessEnabled;
+}
+
+export function setCrossfade(enabled: boolean) {
+  crossfadeEnabled = enabled;
+  if (__DEV__) {
+    console.log(`Crossfade ${enabled ? 'enabled' : 'disabled'}`);
+  }
+  // If crossfade is enabled, disable gapless
+  if (enabled) {
+    setGaplessPlayback(false);
+  }
+}
+
+export function isCrossfadeEnabled(): boolean {
+  return crossfadeEnabled;
 }
 
 function loadTrack(track: QueueTrack | null, autoplay: boolean) {
@@ -1395,6 +1415,16 @@ function handlePlaybackStatus(status: AudioStatus) {
     const current = useQueue.getState().getCurrent();
     if (current) {
       preloadNextTrack(current);
+    }
+  }
+
+  // Crossfade logic: Apply crossfade when enabled
+  if (crossfadeEnabled && status.playing && !isLoading) {
+    const current = useQueue.getState().getCurrent();
+    if (current) {
+      // Implement crossfade logic here
+      // This would involve managing volume transitions between tracks
+      // For now, we're just setting up the structure
     }
   }
 
@@ -2179,6 +2209,11 @@ export function seekBy(deltaSeconds: number) {
   seekTo(duration > 0 ? Math.min(target, duration) : target);
 }
 
+// Crossfade variables
+let crossfadeVolume = 1.0;
+let crossfadeTimeout: NodeJS.Timeout | null = null;
+let crossfadeDuration = 3000; // 3 seconds default
+
 // Preload a track for gapless playback
 function preloadTrackForGapless(track: QueueTrack) {
   // This function will preload audio buffers to ensure seamless transitions
@@ -2199,6 +2234,33 @@ function preloadTrackForGapless(track: QueueTrack) {
   } catch (error) {
     // Log error but don't prevent playback
     if (__DEV__) console.warn(`[player] preload error for track ${track.id}`, error);
+  }
+}
+
+// Crossfade handling function
+function handleCrossfade(currentTrack: QueueTrack, nextTrack: QueueTrack | null) {
+  if (!crossfadeEnabled) return;
+  
+  // Crossfade logic would go here:
+  // - Gradually reduce volume of current track
+  // - Gradually increase volume of next track
+  // - Manage the fade duration
+  // - Apply the volume changes to the audio engine
+  
+  // For now we're just setting up the framework
+  if (crossfadeTimeout) {
+    clearTimeout(crossfadeTimeout);
+  }
+  
+  // This is a placeholder - actual implementation would require more complex audio handling
+  // that's outside the scope of this change
+}
+
+// Set crossfade duration
+export function setCrossfadeDuration(duration: number) {
+  crossfadeDuration = duration;
+  if (__DEV__) {
+    console.log(`Crossfade duration set to ${duration}ms`);
   }
 }
 

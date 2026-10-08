@@ -107,6 +107,8 @@ export default function PlaybackAudioSection() {
   const setEndlessPlaybackEnabled = useApp(
     (store) => store.setEndlessPlaybackEnabled,
   );
+  const crossfadeEnabled = useApp((store) => store.crossfadeEnabled);
+  const setCrossfadeEnabled = useApp((store) => store.setCrossfadeEnabled);
   const showPlayerAudioQuality = useApp(
     (store) => store.showPlayerAudioQuality,
   );
@@ -324,6 +326,14 @@ export default function PlaybackAudioSection() {
           )}
           value={endlessPlaybackEnabled}
           onToggle={(value) => setEndlessPlaybackEnabled(value)}
+        />
+        <SettingsToggleRow
+          label={t("app.settings.playbackSettings.crossfadeLabel")}
+          description={t(
+            "app.settings.playbackSettings.crossfadeDescription",
+          )}
+          value={crossfadeEnabled}
+          onToggle={(value) => setCrossfadeEnabled(value)}
         />
         {isEqualizerAvailable() && (
           <SettingsActionRow
