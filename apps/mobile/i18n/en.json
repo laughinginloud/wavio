@@ -1598,6 +1598,8 @@
 					"title": "Playback",
 					"endlessPlaybackLabel": "Endless playback",
 					"endlessPlaybackDescription": "When the queue ends, automatically add similar tracks to keep the music playing.",
+					"crossfadeLabel": "Crossfade",
+					"crossfadeDescription": "Fade out the current track and fade in the next one for a smooth transition.",
 					"playerAudioQualityLabel": "Audio quality in player",
 					"playerAudioQualityDescription": "Show the source format, bitrate and sample rate of the current track on the now playing screen, including when the server is transcoding it.",
 					"playerRatingLabel": "Star rating in player",

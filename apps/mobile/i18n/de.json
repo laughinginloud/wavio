@@ -1598,6 +1598,8 @@
 					"title": "Wiedergabe",
 					"endlessPlaybackLabel": "Endlosschleife",
 					"endlessPlaybackDescription": "Wenn die Wiedergabeliste zu Ende ist, werden automatisch ähnliche Titel hinzugefügt, damit die Musik weiterläuft.",
+					"crossfadeLabel": "Crossfade",
+					"crossfadeDescription": "Blende den aktuellen Titel aus und den nächsten ein für einen fließenden Übergang.",
 					"playerAudioQualityLabel": "Audioqualität im Player",
 					"playerAudioQualityDescription": "Zeige das Quellformat, die Bitrate und die Abtastrate des aktuellen Titels auf dem Wiedergabebildschirm an, auch wenn der Server ihn gerade transkodiert.",
 					"playerRatingLabel": "Sternbewertung im Player",

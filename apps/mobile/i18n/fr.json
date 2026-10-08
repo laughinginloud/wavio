@@ -1598,6 +1598,8 @@
 					"title": "Lecture",
 					"endlessPlaybackLabel": "Lecture sans fin",
 					"endlessPlaybackDescription": "À la fin de la file d'attente, ajoute automatiquement des morceaux similaires pour continuer la lecture",
+					"crossfadeLabel": "Crossfade",
+					"crossfadeDescription": "Fondu sortant du titre en cours et fondu entrant du suivant pour une transition fluide.",
 					"playerAudioQualityLabel": "Affichage de la qualité audio dans le lecteur",
 					"playerAudioQualityDescription": "Affiche le format source, le débit et la fréquence d'échantillonnage du titre courant sur l'écran en cours de lecture, y compris lorsque le serveur le transcode.",
 					"playerRatingLabel": "Évaluation par étoiles dans le lecteur",

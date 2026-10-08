@@ -256,6 +256,8 @@ interface AppStore {
   setPodcastPlaybackRate: (podcastPlaybackRate: number) => void;
   endlessPlaybackEnabled: boolean;
   setEndlessPlaybackEnabled: (enabled: boolean) => void;
+  crossfadeDuration: number;
+  setCrossfadeDuration: (duration: number) => void;
   showPlayerAudioQuality: boolean;
   setShowPlayerAudioQuality: (enabled: boolean) => void;
   showPlayerRating: boolean;
@@ -496,9 +498,9 @@ export const useAppBase = create<AppStore>()(
   setEndlessPlaybackEnabled: (endlessPlaybackEnabled: boolean) => {
     set({ endlessPlaybackEnabled });
   },
-  crossfadeEnabled: false,
-  setCrossfadeEnabled: (crossfadeEnabled: boolean) => {
-    set({ crossfadeEnabled });
+  crossfadeDuration: 3000,
+  setCrossfadeDuration: (crossfadeDuration: number) => {
+    set({ crossfadeDuration });
   },
   showPlayerAudioQuality: true,
   setShowPlayerAudioQuality: (showPlayerAudioQuality: boolean) => {

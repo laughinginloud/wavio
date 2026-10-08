@@ -1,4 +1,5 @@
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useCallback, useEffect, useId, useRef } from "react";
+import { View } from "react-native";
 import type { LayoutChangeEvent } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -303,6 +304,147 @@ export function SettingsStepperRow({
         >
           <Text className="text-primary-800 font-bold text-lg">+</Text>
         </FadeOutScaleDown>
+      </HStack>
+    </HStack>
+  );
+}
+
+export function SettingsSliderRow({
+  label,
+  description,
+  value,
+  min = 0,
+  max = 10000,
+  step = 100,
+  onValueChange,
+  disabled = false,
+}: {
+  label: string;
+  description: string;
+  value: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  onValueChange: (value: number) => void;
+  disabled?: boolean;
+}) {
+  const [primary400, white] = Uniwind.getCSSVariable([
+    "--color-primary-400",
+    "--color-white",
+  ]) as string[];
+
+  const fill = white ?? "white";
+  const track = primary400 ?? "rgba(255,255,255,0.3)";
+
+  const widthSV = useSharedValue(0);
+  const displayFrac = useSharedValue(0);
+  const sliderId = useId();
+  const isDragging = useRef(false);
+
+  // Sync the shared value when the controlled `value` changes from outside.
+  useEffect(() => {
+    displayFrac.value = Math.min(1, Math.max(0, (value - min) / (max - min)));
+  }, [value, min, max]);
+
+  const handlePan = useCallback(
+    (x: number, layoutWidth: number) => {
+      if (layoutWidth <= 0) return;
+      const frac = Math.min(1, Math.max(0, x / layoutWidth));
+      displayFrac.value = frac;
+      const steppedValue = min + Math.round(frac * (max - min) / step) * step;
+      onValueChange(Math.min(max, Math.max(min, steppedValue)));
+    },
+    [min, max, step, onValueChange],
+  );
+
+  const fillStyle = useAnimatedStyle(() => {
+    const usable = Math.max(0, widthSV.value - THUMB_SIZE);
+    return { width: displayFrac.value * usable + THUMB_SIZE / 2 };
+  });
+
+  const thumbStyle = useAnimatedStyle(() => {
+    const usable = Math.max(0, widthSV.value - THUMB_SIZE);
+    return { transform: [{ translateX: displayFrac.value * usable }] };
+  });
+
+  return (
+    <HStack
+      className={cn(
+        "items-center gap-x-4 py-4 justify-between",
+        disabled && "opacity-50",
+      )}
+    >
+      <VStack className="gap-y-2 w-1/2">
+        <Heading className="text-white font-normal" size="md">
+          {label}
+        </Heading>
+        <Text className="text-primary-100 text-sm">{description}</Text>
+      </VStack>
+      <HStack className="items-center gap-x-3 flex-1">
+        {/* Slider track */}
+        <View
+          key={sliderId}
+          style={{ flex: 1, height: CONTAINER_HEIGHT, justifyContent: "center" }}
+          onLayout={(e: LayoutChangeEvent) => {
+            widthSV.value = e.nativeEvent.layout.width;
+          }}
+          onStartShouldSetResponder={() => true}
+          onMoveShouldRespondResponder={() => !isDragging.current}
+          onResponderMove={(event) => {
+            if (!isDragging.current) isDragging.current = true;
+            const { x } = event.nativeEvent;
+            handlePan(x, widthSV.value || 1);
+          }}
+          onResponderRelease={() => {
+            isDragging.current = false;
+          }}
+        >
+          {/* Track background */}
+          <View
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: TRACK_TOP,
+              height: TRACK_HEIGHT,
+              borderRadius: TRACK_HEIGHT / 2,
+              backgroundColor: track,
+            }}
+          />
+          {/* Fill */}
+          <Animated.View
+            style={[
+              {
+                position: "absolute",
+                left: 0,
+                top: TRACK_TOP,
+                height: TRACK_HEIGHT,
+                borderRadius: TRACK_HEIGHT / 2,
+                backgroundColor: fill,
+              },
+              fillStyle,
+            ]}
+          />
+          {/* Thumb */}
+          <Animated.View
+            style={[
+              {
+                position: "absolute",
+                left: 0,
+                top: THUMB_TOP,
+                width: THUMB_SIZE,
+                height: THUMB_SIZE,
+                borderRadius: THUMB_SIZE / 2,
+                backgroundColor: "white",
+              },
+              thumbStyle,
+            ]}
+          />
+        </View>
+        {/* Value label */}
+        <Text className="text-white font-bold text-sm min-w-[36px] text-right">
+          {value >= 1000 ? `${(value / 1000).toFixed(1)}s` : `${value}ms`}
+        </Text>
       </HStack>
     </HStack>
   );

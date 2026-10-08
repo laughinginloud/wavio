@@ -123,8 +123,15 @@ function logSwallowed(label: string, error: unknown) {
 const player = createAudioPlayer(null, { updateInterval: 250 });
 // Gapless playback configuration
 let gaplessEnabled = true;
-let crossfadeEnabled = false;
 let loadedTrackId: string | null = null;
+
+// Crossfade player — a second expo-audio instance used to play the next track
+// while the current one fades out. Swapped onto `player` when the fade completes.
+const crossfadePlayer = createAudioPlayer(null, { updateInterval: 250 });
+let crossfadeVolume = 1.0;
+let crossfadeTimeout: NodeJS.Timeout | null = null;
+let crossfadeDuration = 3000; // ms — read from app store when > 0
+let isCrossfadeActive = false; // true while a fade transition is in progress
 
 // Sleep-timer fade-out: rather than cut playback dead when the minutes timer
 // expires, ramp the volume to zero over this window, then pause. Driven by the
@@ -971,9 +978,9 @@ export function setGaplessPlayback(enabled: boolean) {
   if (__DEV__) {
     console.log(`Gapless playback ${enabled ? 'enabled' : 'disabled'}`);
   }
-  // If gapless is enabled, disable crossfade
+  // Enabling gapless disables crossfade
   if (enabled) {
-    setCrossfade(false);
+    crossfadeDuration = 0;
   }
 }
 
@@ -981,20 +988,8 @@ export function isGaplessPlaybackEnabled(): boolean {
   return gaplessEnabled;
 }
 
-export function setCrossfade(enabled: boolean) {
-  crossfadeEnabled = enabled;
-  if (__DEV__) {
-    console.log(`Crossfade ${enabled ? 'enabled' : 'disabled'}`);
-  }
-  // If crossfade is enabled, disable gapless
-  if (enabled) {
-    setGaplessPlayback(false);
-  }
-}
-
-export function isCrossfadeEnabled(): boolean {
-  return crossfadeEnabled;
-}
+// Sync crossfade duration from the app store into our local variable
+let lastCrossfadeDuration: number | null = null;
 
 function loadTrack(track: QueueTrack | null, autoplay: boolean) {
   if (!track) {
@@ -1418,13 +1413,13 @@ function handlePlaybackStatus(status: AudioStatus) {
     }
   }
 
-  // Crossfade logic: Apply crossfade when enabled
-  if (crossfadeEnabled && status.playing && !isLoading) {
+  // Crossfade logic: start fading the next track in when we have < crossfadeDuration left.
+  if (crossfadeDuration > 0 && status.playing && !isLoading && !isCrossfadeActive) {
     const current = useQueue.getState().getCurrent();
-    if (current) {
-      // Implement crossfade logic here
-      // This would involve managing volume transitions between tracks
-      // For now, we're just setting up the structure
+    const remaining = status.duration - (status.currentTime ?? 0);
+    if (current && remaining <= crossfadeDuration && remaining > 1) {
+      isCrossfadeActive = true;
+      void startCrossfade(current);
     }
   }
 
@@ -1457,6 +1452,11 @@ function handlePlaybackStatus(status: AudioStatus) {
     // Fully played — drop any resume bookmark so it doesn't reopen at the end.
     clearResumePosition(previousId);
     clearPodcastProgress(previousId);
+    // If crossfade is in progress, let finishCrossfade handle the queue advance.
+    if (isCrossfadeActive) {
+      finishedPodcastId = previousId;
+      return;
+    }
     // The queue advance below re-fires the queue subscription, whose skip-flush
     // would otherwise re-create the entry we just cleared. Only matters when the
     // episode has no known duration (with one, the flush hits the end guard and
@@ -1603,6 +1603,16 @@ const appUnsub = useAppBase.subscribe((state, prev) => {
     applyPlaybackRate(cur);
     if (playbackReportEnabled()) {
       notePlaybackRateChanged(getPlaybackRateFor(cur));
+    }
+  }
+  // Sync crossfade duration from app store into our local variable.
+  const newDuration = state.crossfadeDuration;
+  if (newDuration != null && newDuration !== lastCrossfadeDuration) {
+    lastCrossfadeDuration = newDuration;
+    crossfadeDuration = newDuration;
+    // Enabling crossfade disables gapless
+    if (newDuration > 0 && gaplessEnabled) {
+      gaplessEnabled = false;
     }
   }
 });
@@ -2237,30 +2247,94 @@ function preloadTrackForGapless(track: QueueTrack) {
   }
 }
 
-// Crossfade handling function
-function handleCrossfade(currentTrack: QueueTrack, nextTrack: QueueTrack | null) {
-  if (!crossfadeEnabled) return;
-  
-  // Crossfade logic would go here:
-  // - Gradually reduce volume of current track
-  // - Gradually increase volume of next track
-  // - Manage the fade duration
-  // - Apply the volume changes to the audio engine
-  
-  // For now we're just setting up the framework
-  if (crossfadeTimeout) {
-    clearTimeout(crossfadeTimeout);
+// Crossfade handling: fade out current track while fading in the next one.
+async function startCrossfade(currentTrack: QueueTrack) {
+  const queue = useQueue.getState();
+  const nextIndex = queue.currentIndex + 1;
+  if (nextIndex >= queue.queue.length) return;
+
+  const nextTrack = queue.queue[nextIndex];
+  if (!nextTrack || isPodcastTrack(nextTrack)) {
+    isCrossfadeActive = false;
+    return; // skip crossfade for podcasts
   }
-  
-  // This is a placeholder - actual implementation would require more complex audio handling
-  // that's outside the scope of this change
+
+  try {
+    // Resolve the next track's URL and load it onto the crossfade player.
+    const { url } = resolveTrackUrl(nextTrack);
+    crossfadePlayer.replace(audioSource(url));
+    crossfadePlayer.volume = 0;
+    await crossfadePlayer.play();
+  } catch (err) {
+    if (__DEV__) console.warn("[player] crossfade preload failed", err);
+    isCrossfadeActive = false;
+    return;
+  }
+
+  // Linear volume ramp over the crossfade duration.
+  const startVolume = player.volume ?? 1;
+  const startTime = Date.now();
+
+  function ramp() {
+    if (!isCrossfadeActive) return;
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(1, elapsed / crossfadeDuration);
+    const currentVol = startVolume * (1 - progress);
+    const nextVol = progress; // 0 → 1
+
+    try {
+      player.volume = currentVol;
+      crossfadePlayer.volume = nextVol;
+    } catch (e) {
+      // Player may have been paused/unloaded — ignore.
+    }
+
+    if (progress < 1) {
+      crossfadeTimeout = setTimeout(ramp, 50);
+    } else {
+      // Fade complete — swap the players and advance queue.
+      finishCrossfade();
+    }
+  }
+
+  crossfadeTimeout = setTimeout(ramp, 50);
 }
 
-// Set crossfade duration
+function finishCrossfade() {
+  isCrossfadeActive = false;
+  if (crossfadeTimeout) {
+    clearTimeout(crossfadeTimeout);
+    crossfadeTimeout = null;
+  }
+
+  // Stop both players and advance the queue so loadTrack takes over.
+  try {
+    player.pause();
+  } catch (e) {
+    logSwallowed("crossfade pause old player", e);
+  }
+  try {
+    crossfadePlayer.pause();
+  } catch (e) {
+    logSwallowed("crossfade pause crossfade player", e);
+  }
+
+  // Advance the queue — the next track will be loaded onto `player` normally.
+  useQueue.getState().next();
+}
+
+// Set crossfade duration — also syncs to the app store so settings reflect changes.
 export function setCrossfadeDuration(duration: number) {
   crossfadeDuration = duration;
+  lastCrossfadeDuration = duration;
   if (__DEV__) {
     console.log(`Crossfade duration set to ${duration}ms`);
+  }
+  // If user sets a positive duration, disable gapless. If they set it to 0, enable gapless.
+  if (duration > 0 && gaplessEnabled) {
+    gaplessEnabled = false;
+  } else if (duration === 0 && !gaplessEnabled) {
+    gaplessEnabled = true;
   }
 }
 

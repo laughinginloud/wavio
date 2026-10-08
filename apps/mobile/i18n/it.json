@@ -1598,6 +1598,8 @@
 					"title": "Riproduzione",
 					"endlessPlaybackLabel": "Riproduzione continua",
 					"endlessPlaybackDescription": "Quando la coda finisce, aggiungi automaticamente brani simili per continuare ad ascoltare musica.",
+					"crossfadeLabel": "Crossfade",
+					"crossfadeDescription": "Fade out del brano corrente e fade in di quello successivo per una transizione fluida.",
 					"playerAudioQualityLabel": "Qualità audio nel lettore",
 					"playerAudioQualityDescription": "Visualizza il formato sorgente, il bitrate e la frequenza di campionamento del brano corrente nella schermata \"In riproduzione\", anche quando il server lo sta transcodificando.",
 					"playerRatingLabel": "Stelle nel lettore",

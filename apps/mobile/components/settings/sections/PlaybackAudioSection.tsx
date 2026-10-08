@@ -9,6 +9,7 @@ import {
   SettingsActionRow,
   SettingsSectionTitle,
   SettingsSelectRow,
+  SettingsSliderRow,
   SettingsStepperRow,
   SettingsToggleRow,
 } from "@/components/settings/SettingsRows";
@@ -107,8 +108,11 @@ export default function PlaybackAudioSection() {
   const setEndlessPlaybackEnabled = useApp(
     (store) => store.setEndlessPlaybackEnabled,
   );
-  const crossfadeEnabled = useApp((store) => store.crossfadeEnabled);
-  const setCrossfadeEnabled = useApp((store) => store.setCrossfadeEnabled);
+  const crossfadeEnabled = useApp((store) => store.crossfadeDuration > 0);
+  const crossfadeDuration = useApp((store) => store.crossfadeDuration);
+  const setCrossfadeDuration = useApp(
+    (store) => store.setCrossfadeDuration,
+  );
   const showPlayerAudioQuality = useApp(
     (store) => store.showPlayerAudioQuality,
   );
@@ -327,13 +331,16 @@ export default function PlaybackAudioSection() {
           value={endlessPlaybackEnabled}
           onToggle={(value) => setEndlessPlaybackEnabled(value)}
         />
-        <SettingsToggleRow
+        <SettingsSliderRow
           label={t("app.settings.playbackSettings.crossfadeLabel")}
           description={t(
             "app.settings.playbackSettings.crossfadeDescription",
           )}
-          value={crossfadeEnabled}
-          onToggle={(value) => setCrossfadeEnabled(value)}
+          value={crossfadeDuration}
+          min={0}
+          max={10000}
+          step={100}
+          onValueChange={(value) => setCrossfadeDuration(value)}
         />
         {isEqualizerAvailable() && (
           <SettingsActionRow
