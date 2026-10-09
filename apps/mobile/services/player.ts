@@ -993,6 +993,21 @@ export function isGaplessPlaybackEnabled(): boolean {
   return gaplessEnabled;
 }
 
+// Set crossfade duration — also syncs to the app store so settings reflect changes.
+export function setCrossfadeDuration(duration: number) {
+  crossfadeDuration = duration;
+  lastCrossfadeDuration = duration;
+  if (__DEV__) {
+    console.log(`Crossfade duration set to ${duration}ms`);
+  }
+  // If user sets a positive duration, disable gapless. If they set it to 0, enable gapless.
+  if (duration > 0 && gaplessEnabled) {
+    gaplessEnabled = false;
+  } else if (duration === 0 && !gaplessEnabled) {
+    gaplessEnabled = true;
+  }
+}
+
 // Sync crossfade duration from the app store into our local variable
 let lastCrossfadeDuration: number | null = null;
 
@@ -2200,202 +2215,3 @@ export function seekBy(deltaSeconds: number) {
   const target = Math.max(0, getCurrentTime() + deltaSeconds);
   seekTo(duration > 0 ? Math.min(target, duration) : target);
 }
-
-// Crossfade variables
-let crossfadeVolume = 1.0;
-let crossfadeTimeout: NodeJS.Timeout | null = null;
-let crossfadeDuration = 3000; // 3 seconds default
-
-// Preload a track for gapless playback
-function preloadTrackForGapless(track: QueueTrack) {
-  // This function will preload audio buffers to ensure seamless transitions
-  try {
-    // For now we'll just ensure the track is cached
-    if (track.source === "podcast") {
-      // Podcasts handle their own buffering
-      return;
-    }
-    
-    // For regular tracks, we'll ensure they are pre-loaded by triggering a load
-    // This helps with gapless transitions by ensuring audio buffers are ready
-    const { url } = resolveTrackUrl(track);
-    // The actual buffering happens at the expo-audio level, but we ensure
-    // the track is ready for seamless playback by pre-loading it in the background
-    // This is a simplified approach - in a real implementation, we'd want to
-    // pre-fetch audio buffers to avoid gaps
-  } catch (error) {
-    // Log error but don't prevent playback
-    if (__DEV__) console.warn(`[player] preload error for track ${track.id}`, error);
-  }
-}
-
-// Crossfade handling: fade out current track while fading in the next one.
-async function startCrossfade(currentTrack: QueueTrack) {
-  const queue = useQueue.getState();
-  const nextIndex = queue.currentIndex + 1;
-  if (nextIndex >= queue.queue.length) return;
-
-  const nextTrack = queue.queue[nextIndex];
-  if (!nextTrack || isPodcastTrack(nextTrack)) {
-    isCrossfadeActive = false;
-    return; // skip crossfade for podcasts
-  }
-
-  try {
-    // Resolve the next track's URL and load it onto the crossfade player.
-    const { url } = resolveTrackUrl(nextTrack);
-    crossfadePlayer.replace(audioSource(url));
-    crossfadePlayer.volume = 0;
-    await crossfadePlayer.play();
-  } catch (err) {
-    if (__DEV__) console.warn("[player] crossfade preload failed", err);
-    isCrossfadeActive = false;
-    return;
-  }
-
-  // Linear volume ramp over the crossfade duration.
-  const startVolume = player.volume ?? 1;
-  const startTime = Date.now();
-
-  function ramp() {
-    if (!isCrossfadeActive) return;
-    const elapsed = Date.now() - startTime;
-    const progress = Math.min(1, elapsed / crossfadeDuration);
-    const currentVol = startVolume * (1 - progress);
-    const nextVol = progress; // 0 → 1
-
-    try {
-      player.volume = currentVol;
-      crossfadePlayer.volume = nextVol;
-    } catch (e) {
-      // Player may have been paused/unloaded — ignore.
-    }
-
-    if (progress < 1) {
-      crossfadeTimeout = setTimeout(ramp, 50);
-    } else {
-      // Fade complete — swap the players and advance queue.
-      finishCrossfade();
-    }
-  }
-
-  crossfadeTimeout = setTimeout(ramp, 50);
-}
-
-function finishCrossfade() {
-  isCrossfadeActive = false;
-  if (crossfadeTimeout) {
-    clearTimeout(crossfadeTimeout);
-    crossfadeTimeout = null;
-  }
-
-  // Stop both players and advance the queue so loadTrack takes over.
-  try {
-    player.pause();
-  } catch (e) {
-    logSwallowed("crossfade pause old player", e);
-  }
-  try {
-    crossfadePlayer.pause();
-  } catch (e) {
-    logSwallowed("crossfade pause crossfade player", e);
-  }
-
-  // Advance the queue — the next track will be loaded onto `player` normally.
-  useQueue.getState().next();
-}
-
-// Set crossfade duration — also syncs to the app store so settings reflect changes.
-export function setCrossfadeDuration(duration: number) {
-  crossfadeDuration = duration;
-  lastCrossfadeDuration = duration;
-  if (__DEV__) {
-    console.log(`Crossfade duration set to ${duration}ms`);
-  }
-  // If user sets a positive duration, disable gapless. If they set it to 0, enable gapless.
-  if (duration > 0 && gaplessEnabled) {
-    gaplessEnabled = false;
-  } else if (duration === 0 && !gaplessEnabled) {
-    gaplessEnabled = true;
-  }
-}
-
-// Preload upcoming tracks for gapless playback
-function preloadUpcomingTracks() {
-  const queue = useQueue.getState();
-  if (queue.queue.length === 0 || queue.currentIndex == null) return;
-  
-  // Preload the next few tracks for gapless playback
-  const nextTracks = [];
-  const maxPreload = 3; // Preload up to 3 tracks ahead
-  
-  for (let i = 1; i <= maxPreload; i++) {
-    const index = queue.currentIndex + i;
-    if (index < queue.queue.length) {
-      nextTracks.push(queue.queue[index]);
-    }
-  }
-  
-  // Preload each upcoming track
-  nextTracks.forEach(track => {
-    preloadTrackForGapless(track);
-  });
-}
-
-// Enhanced queue subscription to support gapless playback
-const originalQueueUnsub = useQueue.subscribe((state) => {
-  syncMediaButtons();
-  const current =
-    state.currentIndex != null ? state.queue[state.currentIndex] : null;
-  const id = current?.id ?? null;
-  if (id !== lastTrackId) {
-    const outgoing = lastTrack;
-    if (
-      outgoing &&
-      outgoing.id !== finishedPodcastId &&
-      isPodcastTrack(outgoing)
-    ) {
-      // The engine still holds the outgoing episode's position — player.replace
-      // happens further down this same callback. A skip is the only way to leave
-      // an episode without reaching didJustFinish, so without this it loses up
-      // to a full throttle window.
-      // While a remote target plays, the engine's own position is where it was
-      // paused before the handover; the target knows where the episode got to.
-      const remote = activeRemoteTarget();
-      recordPodcastProgress(
-        outgoing,
-        remote
-          ? remote.getCurrentTime()
-          : effectivePosition(player.currentTime ?? 0),
-        {
-          duration: remote ? outgoing.duration : player.duration,
-          force: true,
-        },
-      );
-    }
-    finishedPodcastId = null;
-    lastTrackId = id;
-    lastTrack = current;
-    if (suppressAutoplayOnce) {
-      suppressAutoplayOnce = false;
-      resetScrobbleState();
-      loadTrack(current, false);
-      return;
-    }
-    // A remote target owns playback elsewhere; the local player just tracks
-    // metadata so the UI stays in sync.
-    if (activeRemoteTarget()) {
-      resetScrobbleState();
-      return;
-    }
-    if (!hasHydrated) {
-      // Persist rehydration emits a state change before onFinishHydration
-      // fires; load the restored track silently so reopening the app does
-      // not auto-resume playback.
-      resetScrobbleState();
-      loadTrack(current, false);
-      return;
-    }
-    loadAndPlay(current);
-  }
-});
